@@ -1,0 +1,7 @@
+selenium
+bs4
+time
+re
+json
+pandas
+chromedriver-autoinstaller
