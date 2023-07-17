@@ -4,6 +4,7 @@ import time
 
 import chromedriver_autoinstaller
 import pandas as pd
+import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -214,8 +215,7 @@ class Post_Scraper:
         """
         Extract the post descrtiption (text).
         """
-        pdt = soup.find("abbr")
-        description_= pdt.get_text()
+
 
         p = soup.findAll("p")
         if len(p) > 0:
@@ -231,18 +231,52 @@ class Post_Scraper:
                 div_tag = soup.find('div', {'data-ft': '{"tn":",g"}'})
                 if div_tag is not None:
                     description_text += div_tag.get_text().split(" · in Timeline")[0].replace('· Public', '')
-        return description_text , description_
+        return description_text
 
     def get_post_reactions(self, soup):
+        desc_ = []
+        pq = soup.find("abbr")
+        if pq is not None:
+            desc_.append(pq.get_text())
 
-        pdt = soup.find("abbr")
-
-        for description_ in range(1):
-                description_ = pdt.get_text()
-
-        return description_
+        return desc_
 
 
+    def get_reactions(self, soup):
+        reaction_list = []
+        pdt = soup.find("div", class_="df")
+        if pdt is not None:
+            for reactions in range(1):
+                reactions = pdt.get_text()
+                reaction_list.append(reactions)
+        pd = soup.find("div", class_="ct")
+        if pd is not None:
+            for reactions in range(1):
+                reactions = pd.get_text()
+                reaction_list.append(reactions)
+        pdy = soup.find("div", class_="da")
+        if pdy is not None:
+            for reactions in range(1):
+                reactions = pdy.get_text()
+                reaction_list.append(reactions)
+        pdv = soup.find("div", class_="dl")
+        if pdv is not None:
+            for reactions in range(1):
+                reactions = pdv.get_text()
+                reaction_list.append(reactions)
+        pdm = soup.find("div", class_="_1g06")
+        if pdm is not None:
+            for reactions in range(1):
+                reactions = pdm.get_text()
+                reaction_list.append(reactions)
+
+        pdh = soup.find("div", class_="dh")
+        if pdh is not None:
+            for reactions in range(1):
+                reactions = pdh.get_text()
+                reaction_list.append(reactions)
+
+        return reaction_list
 
 
     def more_comments(self, soup):
@@ -254,7 +288,7 @@ class Post_Scraper:
             more_comments_url = None
         return more_comments_url
 
-    def get_post_comments(self, soup, comments_dict={}, who_commented_dict={}, comments_max=10):
+    def get_post_comments(self, soup, comments_dict={}, who_commented_dict={}, comments_max=1):
 
         count = 0
         while count <= comments_max:
@@ -314,7 +348,7 @@ class Post_Scraper:
 
         comments_dict = json.dumps(comments_dict, ensure_ascii=False).encode('utf8').decode()
         who_commented_dict = json.dumps(who_commented_dict, ensure_ascii=False).encode('utf8').decode()
-        return comments_dict, who_commented_dict
+        return comments_dict
 
 
 def _draw_as_table(df, pagesize):
@@ -369,21 +403,21 @@ if __name__ == "__main__":
     for i in range(number_posts_max):
         post_url = posts_urls_list[i]
         post_soup = scraper.get_content(post_url)
-        time.sleep(3)
+        time.sleep(30)
         profile_name, profile_url = scraper.get_profile(post_soup)
         post_date_list = scraper.get_posts_info(soup)
         profile_names_list.append(profile_name)
         descriptions_list.append(scraper.get_post_description(post_soup))
         post_date_list_.append(scraper.get_post_reactions(post_soup))
-        comments, who_commented = scraper.get_post_comments(post_soup, comments_max=number_comments_max)
-        who_commented_list.append(who_commented)
-        comments_list.append(comments)
+        reaction_list.append(scraper.get_reactions(post_soup))
+
+        comments_list.append(scraper.get_post_comments(post_soup, comments_max=number_comments_max))
         print("----------------------------------")
         print(f"post {i + 1} successfully scraped")
 
     print(len(profile_names_list), len(descriptions_list), len(comments_list), len(who_commented_list))
     data = {"profile_name": profile_names_list[:number_posts_max],
-            "post_description": descriptions_list[:number_posts_max],
+            "post_description": descriptions_list[:number_posts_max],"Reaction Count": reaction_list[:number_posts_max],
             "Posting Date": post_date_list_[:number_posts_max],"comments": comments_list[:number_posts_max]}
     df = pd.DataFrame(data)
     df.to_html(output_file_name)
