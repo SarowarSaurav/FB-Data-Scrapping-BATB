@@ -420,5 +420,5 @@ if __name__ == "__main__":
             "post_description": descriptions_list[:number_posts_max],"Reaction Count": reaction_list[:number_posts_max],
             "Posting Date": post_date_list_[:number_posts_max],"comments": comments_list[:number_posts_max]}
     df = pd.DataFrame(data)
-    df.to_html(output_file_name)
+    df.to_(output_file_name)
     scraper.driver.close()
