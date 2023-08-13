@@ -8,6 +8,9 @@ import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+# import SentimentIntensityAnalyzer class
+# from vaderSentiment.vaderSentiment module.
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 from config import username, password, number_posts_max, number_comments_max, output_file_name
 
@@ -48,6 +51,11 @@ class Post_Scraper:
         time.sleep(2)
         email_.submit()
         time.sleep(10)
+
+
+
+
+
 
     def get_content(self, url=None):
         """
@@ -231,7 +239,12 @@ class Post_Scraper:
                 div_tag = soup.find('div', {'data-ft': '{"tn":",g"}'})
                 if div_tag is not None:
                     description_text += div_tag.get_text().split(" · in Timeline")[0].replace('· Public', '')
-        return description_text
+
+        # description_text_check = description_text[:200]
+        # sentiment = sentiment_scores(description_text_check)
+        data = description_text + " || " # + sentiment
+
+        return data
 
     def get_post_reactions(self, soup):
         desc_ = []
@@ -317,10 +330,10 @@ class Post_Scraper:
             for i in div_text:
                 if i not in aa:
                     aa.append(i)
+
             for j in aa:
                 if 'Like · React · Reply · More ·' in j and 'View more comments…' not in j:
                     aa1.append(j)
-
             ll = [' ' for i in range(len(who_commented_names))]
             if len(who_commented_names) > 0:
                 for i in range(len(who_commented_names)):
@@ -328,8 +341,10 @@ class Post_Scraper:
                         if who_commented_names[i] in j:
                             com = j.split(who_commented_names[i])[1]
                             ll[i] = com.split("Like")[0].replace('"', '')
+                            print(ll[i])
                             if 'Edited ·' in ll[i]:
                                 ll[i] = com.split("Edited ·")[0]
+
 
                     for i in range(len(who_commented_names)):
                         comments_dict[who_commented_names[i]] = ll[i]
@@ -348,8 +363,75 @@ class Post_Scraper:
 
         comments_dict = json.dumps(comments_dict, ensure_ascii=False).encode('utf8').decode()
         who_commented_dict = json.dumps(who_commented_dict, ensure_ascii=False).encode('utf8').decode()
+
         return comments_dict
 
+    def get_sentiment_comments(self, soup, comments_dict={}, who_commented_dict={}, comments_max=1):
+        check = []
+        count = 0
+        while count <= comments_max:
+            who_commented_profiles, who_commented_names = [], []
+            comments_tag = soup.find_all('h3')
+            if len(comments_tag) > 0:
+                for i in comments_tag:
+                    a_tag = i.find('a')
+                    if a_tag is not None:
+                        if a_tag.has_attr('href'):
+                            a_href = a_tag['href']
+                            if ("refid=52&__tn__=R" in a_href) or ('refid=18&__tn__=R' in a_href) or (
+                                    "?rc=p&__tn__=R" in a_href):
+                                a_href = a_href.replace("&refid=52&__tn__=R", '')
+                                a_href = a_href.replace("refid=52&__tn__=R", '')
+                                a_href = a_href.replace("&refid=18&__tn__=R", '')
+                                a_href = a_href.replace("?refid=18&__tn__=R", '')
+                                a_href_url = self.LOGIN_URL + a_href
+                                who_commented_profiles.append(a_href_url)
+                                who_commented_names.append(a_tag.get_text())
+                                # Comments Extraction:
+            div = soup.find_all('div')
+            div_text = [i.get_text() for i in div]
+
+            aa, aa1 = [], []
+            for i in div_text:
+                if i not in aa:
+                    aa.append(i)
+
+            for j in aa:
+                if 'Like · React · Reply · More ·' in j and 'View more comments…' not in j:
+                    aa1.append(j)
+            ll = [' ' for i in range(len(who_commented_names))]
+            if len(who_commented_names) > 0:
+                for i in range(len(who_commented_names)):
+                    for j in aa1:
+                        if who_commented_names[i] in j:
+                            com = j.split(who_commented_names[i])[1]
+                            ll[i] = com.split("Like")[0].replace('"', '')
+                            #sentiment = sentiment_scores(ll[i])
+                            #ll[i] = ll[i] + " || " + sentiment + " || "
+                            check.append(ll[i])
+                            if 'Edited ·' in ll[i]:
+                                ll[i] = com.split("Edited ·")[0]
+
+
+                    for i in range(len(who_commented_names)):
+                        comments_dict[who_commented_names[i]] = ll[i]
+                        who_commented_dict[who_commented_names[i]] = who_commented_profiles[i]
+            count = len(comments_dict.keys())
+
+            more_comments = self.more_comments(soup)
+            if more_comments is not None:
+                more_comments_url = self.MBASIC_URL + more_comments.replace(self.MBASIC_URL, '')
+                self.driver.get(more_comments_url)
+                page_content = self.driver.page_source
+                soup = BeautifulSoup(page_content, 'html.parser')
+
+            else:
+                break
+
+        comments_dict = json.dumps(comments_dict, ensure_ascii=False).encode('utf8').decode()
+        who_commented_dict = json.dumps(who_commented_dict, ensure_ascii=False).encode('utf8').decode()
+
+        return check
 
 def _draw_as_table(df, pagesize):
     alternating_colors = [['white'] * len(df.columns), ['lightgray'] * len(df.columns)] * len(df)
@@ -385,7 +467,42 @@ def dataframe_to_pdf(df, filename, numpages=(1, 1), pagesize=(11, 8.5)):
                 pdf.savefig(fig, bbox_inches='tight')
 
                 plt.close()
+import avro
 
+
+def sentiment_scores(sentence):
+    tr_bng = avro.parse(sentence)
+    if len(tr_bng)>200:
+        tr_bng=tr_bng[:100]
+    else:
+        tr_bng=tr_bng
+    from googletrans import Translator
+
+    translator = Translator()
+    tr = translator.translate(tr_bng, src='auto', dest='bn')
+    tr_eng = translator.translate(tr.text, src='bn', dest='en')
+
+    sentence = tr_eng.text
+    # Create a SentimentIntensityAnalyzer object.
+    sid_obj = SentimentIntensityAnalyzer()
+
+    # polarity_scores method of SentimentIntensityAnalyzer
+    # object gives a sentiment dictionary.
+    # which contains pos, neg, neu, and compound scores.
+    sentiment_dict = sid_obj.polarity_scores(sentence)
+
+    # print("Sentence Overall Rated As", end=" ")
+
+    # decide sentiment as positive, negative and neutral
+    if sentiment_dict['compound'] >= 0.05:
+        result = "Positive"
+
+    elif sentiment_dict['compound'] <= - 0.05:
+        result = "Negative"
+
+    else:
+        result = "Neutral"
+    return result
 
 if __name__ == "__main__":
 
@@ -396,14 +513,14 @@ if __name__ == "__main__":
     posts_urls_list, post_date_list, likes_list = scraper.get_posts_info(soup)
     print(f">>> Number of Posts Availible: {len(posts_urls_list)}")
 
-    profile_names_list, post_date_list_, descriptions_list, who_commented_list, comments_list, reaction_list = [], [], [], [], [], []
+    profile_names_list, post_date_list_, descriptions_list, who_commented_list, comments_list, reaction_list , sentiment = [], [], [], [], [], [] ,[]
     if number_posts_max > len(posts_urls_list):
         number_posts_max = len(posts_urls_list)
 
     for i in range(number_posts_max):
         post_url = posts_urls_list[i]
         post_soup = scraper.get_content(post_url)
-        time.sleep(30)
+        time.sleep(10)
         profile_name, profile_url = scraper.get_profile(post_soup)
         post_date_list = scraper.get_posts_info(soup)
         profile_names_list.append(profile_name)
@@ -412,13 +529,16 @@ if __name__ == "__main__":
         reaction_list.append(scraper.get_reactions(post_soup))
 
         comments_list.append(scraper.get_post_comments(post_soup, comments_max=number_comments_max))
+        sentiment.append(scraper.get_sentiment_comments(post_soup, comments_max=number_comments_max))
         print("----------------------------------")
         print(f"post {i + 1} successfully scraped")
 
     print(len(profile_names_list), len(descriptions_list), len(comments_list), len(who_commented_list))
     data = {"profile_name": profile_names_list[:number_posts_max],
             "post_description": descriptions_list[:number_posts_max],"Reaction Count": reaction_list[:number_posts_max],
-            "Posting Date": post_date_list_[:number_posts_max],"comments": comments_list[:number_posts_max]}
+            "Posting Date": post_date_list_[:number_posts_max],"comments": comments_list[:number_posts_max],"Sentiment": sentiment[:number_posts_max]}
+    print(comments_list)
+    print(sentiment)
     df = pd.DataFrame(data)
-    df.to_(output_file_name)
+    df.to_html(output_file_name)
     scraper.driver.close()
