@@ -240,9 +240,8 @@ class Post_Scraper:
                 if div_tag is not None:
                     description_text += div_tag.get_text().split(" · in Timeline")[0].replace('· Public', '')
 
-        # description_text_check = description_text[:200]
-        # sentiment = sentiment_scores(description_text_check)
-        data = description_text + " || " # + sentiment
+        
+        data = description_text + " || " 
 
         return data
 
@@ -406,8 +405,7 @@ class Post_Scraper:
                         if who_commented_names[i] in j:
                             com = j.split(who_commented_names[i])[1]
                             ll[i] = com.split("Like")[0].replace('"', '')
-                            #sentiment = sentiment_scores(ll[i])
-                            #ll[i] = ll[i] + " || " + sentiment + " || "
+                            
                             check.append(ll[i])
                             if 'Edited ·' in ll[i]:
                                 ll[i] = com.split("Edited ·")[0]
@@ -467,42 +465,9 @@ def dataframe_to_pdf(df, filename, numpages=(1, 1), pagesize=(11, 8.5)):
                 pdf.savefig(fig, bbox_inches='tight')
 
                 plt.close()
-import avro
 
 
-def sentiment_scores(sentence):
-    tr_bng = avro.parse(sentence)
-    if len(tr_bng)>200:
-        tr_bng=tr_bng[:100]
-    else:
-        tr_bng=tr_bng
-    from googletrans import Translator
 
-    translator = Translator()
-    tr = translator.translate(tr_bng, src='auto', dest='bn')
-    tr_eng = translator.translate(tr.text, src='bn', dest='en')
-
-    sentence = tr_eng.text
-    # Create a SentimentIntensityAnalyzer object.
-    sid_obj = SentimentIntensityAnalyzer()
-
-    # polarity_scores method of SentimentIntensityAnalyzer
-    # object gives a sentiment dictionary.
-    # which contains pos, neg, neu, and compound scores.
-    sentiment_dict = sid_obj.polarity_scores(sentence)
-
-    # print("Sentence Overall Rated As", end=" ")
-
-    # decide sentiment as positive, negative and neutral
-    if sentiment_dict['compound'] >= 0.05:
-        result = "Positive"
-
-    elif sentiment_dict['compound'] <= - 0.05:
-        result = "Negative"
-
-    else:
-        result = "Neutral"
-    return result
 
 if __name__ == "__main__":
 
