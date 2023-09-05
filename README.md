@@ -1,35 +1,19 @@
-<?php
-session_start();
+$sql = "SELECT * FROM your_table_name WHERE your_condition";
 
-$serverName = "your_server_name";
-$connectionOptions = array(
-    "Database" => "your_database_name",
-    "Uid" => "your_username",
-    "PWD" => "your_password"
-);
+// Execute the query
+$query = sqlsrv_query($conn, $sql);
 
-$conn = sqlsrv_connect($serverName, $connectionOptions);
-
-if (!$conn) {
-    die("Connection failed: " . sqlsrv_errors());
+if ($query === false) {
+    die("Query execution failed: " . sqlsrv_errors());
 }
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = $_POST["username"];
-    $password = $_POST["password"];
-
-    $sql = "SELECT * FROM users WHERE username = ? AND password = ?";
-    $params = array($username, $password);
-    $query = sqlsrv_query($conn, $sql, $params);
-
-    if ($row = sqlsrv_fetch_array($query)) {
-        $_SESSION["username"] = $row["username"];
-        $_SESSION["role"] = $row["role"];
-        echo "1"; // Successful login (return 1)
-    } else {
-        echo "2"; // Authentication failure (return 2)
-    }
+// Fetch a single row
+if ($row = sqlsrv_fetch_array($query, SQLSRV_FETCH_ASSOC)) {
+    // Print the row data to the terminal
+    print_r($row);
+} else {
+    echo "No data found for the given condition.";
 }
 
+// Close the connection
 sqlsrv_close($conn);
-?>
